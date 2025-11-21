@@ -1,5 +1,5 @@
 import React, { useState, useContext, useEffect } from "react";
-import { ThumbsUp, ThumbsDown, X, Image as ImageIcon, Edit2, User, Lock, Save, X as XIcon } from "lucide-react";
+import { ThumbsUp, ThumbsDown, X, Image as ImageIcon, Edit2 } from "lucide-react";
 import AuthContext from "../context/AuthContext";
 import axiosInstance from "../config/apiConfig";
 
@@ -11,20 +11,52 @@ export default function ProfilePage() {
   const [content, setContent] = useState("");
   const [image, setImage] = useState(null);
   const [showShareOptions, setShowShareOptions] = useState(false);
-  const [showEditModal, setShowEditModal] = useState(false);
-  const [editFormData, setEditFormData] = useState({
-    full_name: '',
-    current_password: '',
-    new_password: '',
-    confirm_password: ''
-  });
-  const [profilePicture, setProfilePicture] = useState(null);
-  const [passwordError, setPasswordError] = useState('');
+// Edit profile states
+   const [editMode, setEditMode] = useState(false);
+  const [editFullName, setEditFullName] = useState("");
+  const [editDob, setEditDob] = useState("");
+  const [editImage, setEditImage] = useState(null);
+  const [previewImage, setPreviewImage] = useState(null);
+
+
 
   // Debug: log user data whenever it changes
   useEffect(() => {
     console.log('User from context:', user);
   }, [user]);
+
+
+   const editProfile = () => {
+  setEditMode(true);
+    setEditFullName(userProfile?.full_name || "");
+    setEditDob(userProfile?.dob || "");
+    setPreviewImage(userProfile?.profile_picture || null);
+  }
+
+  const saveProfile = async () => {
+    try {
+      const formData = new FormData();
+      formData.append("full_name", editFullName);
+      formData.append("dob", editDob);
+
+      if (editImage) {
+        formData.append("profile_picture", editImage);
+      }
+
+      const response = await axiosInstance.put("/profile/me/update/", formData, {
+        headers: { "Content-Type": "multipart/form-data" },
+      });
+
+      alert("Profile updated successfully");
+
+      setUserProfile(response.data);
+      setEditMode(false);
+      setEditImage(null);
+    } catch (error) {
+      console.error("Error updating profile:", error);
+      alert("Profile update failed");
+    }
+  };
 
   const handlePost = async () => {
     if (content.trim()) {
@@ -104,14 +136,10 @@ export default function ProfilePage() {
   useEffect(() => {
     const fetchUserProfile = async () => {
       try {
-        console.log('Current user from context:', user);
+        console.log('Current user from context:', user); // Debug log
         const response = await axiosInstance.get('/profile/me/');
-        console.log('Profile data from API:', response.data);
+        console.log('Profile data from API:', response.data); // Debug log
         setUserProfile(response.data);
-        setEditFormData(prev => ({
-          ...prev,
-          full_name: response.data.full_name || ''
-        }));
       } catch (error) {
         console.error('Error fetching profile:', error);
       }
@@ -119,97 +147,6 @@ export default function ProfilePage() {
 
     fetchUserProfile();
   }, [user]);
-
-  const handleEditProfile = () => {
-    setShowEditModal(true);
-    setPasswordError('');
-  };
-
-  const handleInputChange = (e) => {
-    const { name, value } = e.target;
-    setEditFormData(prev => ({
-      ...prev,
-      [name]: value
-    }));
-  };
-
-  const handleProfilePictureChange = (e) => {
-    if (e.target.files && e.target.files[0]) {
-      setProfilePicture({
-        file: e.target.files[0],
-        preview: URL.createObjectURL(e.target.files[0])
-      });
-    }
-  };
-
-  const handleSaveProfile = async () => {
-    // Validate passwords if any password field is filled
-    if (editFormData.new_password || editFormData.confirm_password || editFormData.current_password) {
-      if (editFormData.new_password !== editFormData.confirm_password) {
-        setPasswordError('New passwords do not match');
-        return;
-      }
-      if (editFormData.new_password.length < 8) {
-        setPasswordError('Password must be at least 8 characters long');
-        return;
-      }
-    }
-
-    try {
-      const formData = new FormData();
-      
-      // Only append fields that have values
-      if (editFormData.full_name) {
-        formData.append('full_name', editFormData.full_name);
-      }
-      
-      if (editFormData.current_password) {
-        formData.append('current_password', editFormData.current_password);
-        formData.append('new_password', editFormData.new_password);
-      }
-      
-      // Append profile picture if selected
-      if (profilePicture?.file) {
-        formData.append('profile_picture', profilePicture.file);
-      }
-
-      const response = await axiosInstance.put('/profile/me/update/', formData, {
-        headers: {
-          'Content-Type': 'multipart/form-data',
-        },
-      });
-
-      setUserProfile(prev => ({
-        ...prev,
-        ...response.data,
-        full_name: editFormData.full_name || prev.full_name
-      }));
-      
-      setShowEditModal(false);
-      
-      // Reset form
-      setEditFormData({
-        full_name: response.data.full_name || '',
-        current_password: '',
-        new_password: '',
-        confirm_password: ''
-      });
-      
-      // Reset profile picture state
-      if (profilePicture?.preview) {
-        URL.revokeObjectURL(profilePicture.preview);
-        setProfilePicture(null);
-      }
-      
-    } catch (error) {
-      console.error('Error updating profile:', error);
-      if (error.response?.data) {
-        setPasswordError(error.response.data.detail || 'Error updating profile');
-      } else {
-        setPasswordError('Error updating profile. Please try again.');
-      }
-    }
-  };
 
   return (
     <div className="min-h-screen bg-gray-100">
@@ -237,20 +174,14 @@ export default function ProfilePage() {
           
 
           {/* DOB */}
-          <div className="flex items-center justify-center gap-1 mb-4 text-sm text-gray-500"> 
+          <div className="flex items-center justify-center gap-1 mb-4 text-sm text-gray-500">
             <span>DOB - {userProfile?.dob || 'Not set'}</span>
+
+            <Edit2 
+             onClick={editProfile}
+            className="w-5 h-5 cursor-pointer text-blue-600 hover:text-blue-800"/>
+            {/* <div>Edit</div> */}
           </div>
-          {/* <div className="flex items-center justify-center gap-1 mb-4 text-sm text-gray-500">
-            <span>Member since {new Date(userProfile?.date_joined).toLocaleDateString()}</span>
-          </div> */}
-          
-          <button
-            onClick={handleEditProfile}
-            className="w-full bg-blue-600 hover:bg-blue-700 text-white py-2 rounded transition mb-4 flex items-center justify-center gap-2"
-          >
-            <Edit2 className="w-4 h-4" />
-            Edit Profile
-          </button>
 
           {/* Share Button */}
           <div className="relative">
@@ -356,6 +287,74 @@ export default function ProfilePage() {
             )}
           </div>
         </div>
+
+        {editMode && (
+          <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
+            <div className="bg-white w-96 rounded-lg p-6 shadow-lg">
+              <h2 className="text-xl font-semibold mb-4">Edit Profile</h2>
+
+              {/* Name */}
+              <label className="text-sm font-medium">Full Name</label>
+              <input
+                value={editFullName}
+                onChange={(e) => setEditFullName(e.target.value)}
+                className="w-full border px-3 py-2 rounded mb-3"
+                placeholder="Enter full name"
+              />
+
+              {/* DOB */}
+              <label className="text-sm font-medium">Date of Birth</label>
+              <input
+                type="date"
+                value={editDob}
+                onChange={(e) => setEditDob(e.target.value)}
+                className="w-full border px-3 py-2 rounded mb-3"
+              />
+
+              {/* Profile Picture */}
+              <label className="text-sm font-medium">
+                Profile Picture
+              </label>
+              <input
+                type="file"
+                accept="image/*"
+                onChange={(e) => {
+                  const file = e.target.files[0];
+                  setEditImage(file);
+                  if (file) {
+                    setPreviewImage(URL.createObjectURL(file));
+                  }
+                }}
+                className="w-full mb-3"
+              />
+
+              {/* Preview */}
+              {previewImage && (
+                <img
+                  src={previewImage}
+                  className="w-24 h-24 rounded-full object-cover mx-auto mb-3"
+                />
+              )}
+
+              {/* Buttons */}
+              <div className="flex justify-between mt-4">
+                <button
+                  onClick={() => setEditMode(false)}
+                  className="px-3 py-2 bg-gray-300 rounded"
+                >
+                  Cancel
+                </button>
+
+                <button
+                  onClick={saveProfile}
+                  className="px-4 py-2 bg-blue-600 text-white rounded"
+                >
+                  Save Changes
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Main Content */}
         <div className="flex-1 max-w-2xl">
@@ -484,146 +483,6 @@ export default function ProfilePage() {
           </div>
         </div>
       </div>
-      
-      {/* Edit Profile Modal */}
-      {showEditModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-lg w-full max-w-md max-h-[90vh] overflow-y-auto">
-            <div className="p-6">
-              <div className="flex justify-between items-center mb-4">
-                <h3 className="text-xl font-semibold">Edit Profile</h3>
-                <button 
-                  onClick={() => setShowEditModal(false)}
-                  className="text-gray-500 hover:text-gray-700"
-                >
-                  <X className="w-6 h-6" />
-                </button>
-              </div>
-              
-              <div className="space-y-4">
-                <div className="flex flex-col items-center">
-                  <div className="relative mb-4">
-                    <div className="w-24 h-24 rounded-full bg-gray-200 flex items-center justify-center overflow-hidden">
-                      {profilePicture?.preview ? (
-                        <img 
-                          src={profilePicture.preview} 
-                          alt="Profile preview" 
-                          className="w-full h-full object-cover"
-                        />
-                      ) : userProfile?.profile_picture ? (
-                        <img 
-                          src={userProfile.profile_picture} 
-                          alt="Profile" 
-                          className="w-full h-full object-cover"
-                        />
-                      ) : (
-                        <User className="w-12 h-12 text-gray-400" />
-                      )}
-                    </div>
-                    <label className="absolute bottom-0 right-0 bg-blue-500 text-white rounded-full p-1.5 cursor-pointer">
-                      <Edit2 className="w-4 h-4" />
-                      <input 
-                        type="file" 
-                        className="hidden" 
-                        accept="image/*"
-                        onChange={handleProfilePictureChange}
-                      />
-                    </label>
-                  </div>
-                </div>
-                
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Full Name</label>
-                  <div className="relative">
-                    <User className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
-                    <input
-                      type="text"
-                      name="full_name"
-                      value={editFormData.full_name}
-                      onChange={handleInputChange}
-                      className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      placeholder="Enter your full name"
-                    />
-                  </div>
-                </div>
-
-                <div className="pt-4 border-t border-gray-200">
-                  <h4 className="text-sm font-medium text-gray-700 mb-3">Change Password (leave blank to keep current)</h4>
-                  
-                  <div className="space-y-3">
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Current Password</label>
-                      <div className="relative">
-                        <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
-                        <input
-                          type="password"
-                          name="current_password"
-                          value={editFormData.current_password}
-                          onChange={handleInputChange}
-                          className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                          placeholder="Enter current password"
-                        />
-                      </div>
-                    </div>
-                    
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">New Password</label>
-                      <div className="relative">
-                        <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
-                        <input
-                          type="password"
-                          name="new_password"
-                          value={editFormData.new_password}
-                          onChange={handleInputChange}
-                          className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                          placeholder="Enter new password"
-                        />
-                      </div>
-                    </div>
-                    
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Confirm New Password</label>
-                      <div className="relative">
-                        <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
-                        <input
-                          type="password"
-                          name="confirm_password"
-                          value={editFormData.confirm_password}
-                          onChange={handleInputChange}
-                          className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                          placeholder="Confirm new password"
-                        />
-                      </div>
-                    </div>
-                    
-                    {passwordError && (
-                      <div className="text-red-500 text-sm mt-1">
-                        {passwordError}
-                      </div>
-                    )}
-                  </div>
-                </div>
-                
-                <div className="flex justify-end space-x-3 pt-4">
-                  <button
-                    onClick={() => setShowEditModal(false)}
-                    className="px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50"
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    onClick={handleSaveProfile}
-                    className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 flex items-center gap-2"
-                  >
-                    <Save className="w-4 h-4" />
-                    Save Changes
-                  </button>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 }
