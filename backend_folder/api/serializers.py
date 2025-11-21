@@ -57,6 +57,13 @@ class ProfileSerializer(serializers.ModelSerializer):
     class Meta:
         model = Profile
         fields = ['id', 'user', 'full_name', 'dob', 'profile_picture']
+        extra_kwargs = {
+    'full_name': {'required': False},
+    'dob': {'required': False},
+}
+
+
+
 
 class RegisterSerializer(serializers.ModelSerializer):
     full_name = serializers.CharField(
@@ -151,6 +158,7 @@ class PostSerializer(serializers.ModelSerializer):
         read_only_fields = ['id','user','created_at','comments','likes_count','dislikes_count']
 
     def get_likes_count(self, obj):
+        
         return obj.likes.count()
 
     def get_dislikes_count(self, obj):

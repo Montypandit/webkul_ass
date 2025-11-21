@@ -124,6 +124,15 @@ class ProfileByUsernameAPIView(generics.RetrieveAPIView):
         return profile
     
 # update profile
+# class MyProfileUpdateAPIView(generics.UpdateAPIView):
+#     serializer_class = ProfileSerializer
+#     permission_classes = [permissions.IsAuthenticated]
+#     parser_classes = [MultiPartParser, FormParser]
+
+#     def get_object(self):
+#         profile, created = Profile.objects.get_or_create(user=self.request.user)
+#         return profile
+
 class MyProfileUpdateAPIView(generics.UpdateAPIView):
     serializer_class = ProfileSerializer
     permission_classes = [permissions.IsAuthenticated]
@@ -132,6 +141,13 @@ class MyProfileUpdateAPIView(generics.UpdateAPIView):
     def get_object(self):
         profile, created = Profile.objects.get_or_create(user=self.request.user)
         return profile
+    
+    def put(self, request, *args, **kwargs):
+        return self.update(request, *args, **kwargs)
+
+    def patch(self, request, *args, **kwargs):
+        return self.partial_update(request, *args, **kwargs)
+
 
 # Posts list/create and detail view
 class PostListCreateAPIView(generics.ListCreateAPIView):
